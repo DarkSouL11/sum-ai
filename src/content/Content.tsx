@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from '@emotion/styled';
 
 const ButtonContainer = styled.div`
@@ -41,16 +41,39 @@ const SummarizeIcon = () => (
   </svg>
 );
 
-interface ContentProps {
-  onSummarize: () => void;
-  isLoading?: boolean;
-}
+const Content: React.FC = () => {
+  const [isLoading, setIsLoading] = useState(false);
 
-const Content: React.FC<ContentProps> = ({ onSummarize, isLoading = false }) => {
+  const handleSummarize = async () => {
+    try {
+      const videoTitle = document.querySelector('h1.ytd-video-primary-info-renderer')?.textContent;
+      
+      // Start loading state
+      setIsLoading(true);
+      
+      // Send message to popup
+      chrome.runtime.sendMessage({
+        type: 'SUMMARIZE',
+        data: {
+          title: videoTitle,
+          url: window.location.href
+        }
+      });
+
+      // Stop loading state after 2 seconds (this should be handled by the background script)
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error:', error);
+      setIsLoading(false);
+    }
+  };
+
   return (
     <ButtonContainer>
       <SummarizeButton
-        onClick={onSummarize}
+        onClick={handleSummarize}
         disabled={isLoading}
       >
         {isLoading ? (
