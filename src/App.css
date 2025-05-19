@@ -1,5 +1,8 @@
 .App {
-  text-align: center;
+  width: 350px;
+  min-height: 200px;
+  padding: 16px;
+  background-color: #ffffff;
 }
 
 .App-logo {
@@ -14,14 +17,13 @@
 }
 
 .App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  text-align: center;
+}
+
+.App-header h1 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #0f0f0f;
 }
 
 .App-link {
@@ -35,4 +37,66 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+button:hover {
+  background-color: #4fa8d1 !important;
+  transition: background-color 0.3s ease;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error {
+  color: #e74c3c;
+  padding: 16px;
+  background-color: #fde8e8;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.summary {
+  text-align: left;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+.summary h2 {
+  font-size: 1rem;
+  margin-bottom: 12px;
+  color: #0f0f0f;
+}
+
+.summary p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #2f2f2f;
+}
+
+.welcome {
+  color: #666;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 16px 0;
 }
