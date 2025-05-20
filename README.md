@@ -19,7 +19,7 @@ npm start
 1. Create a production build:
 ```bash
 npm run build
-```1
+```
 2. The build will be created in the `build` directory
 
 ## Loading the Extension in Chrome
@@ -29,11 +29,23 @@ npm run build
 3. Click "Load unpacked" and select the `build` directory from this project
 4. The extension should now appear in your Chrome toolbar
 
+## Environment Variables
+
+- `REACT_APP_LOG_LEVEL`: Controls the logging level. Valid values are:
+  - `DEBUG`: Logs all levels (DEBUG, INFO, WARN, ERROR).
+  - `INFO`: Logs INFO, WARN, and ERROR.
+  - `WARN`: Logs WARN and ERROR.
+  - `ERROR`: Logs only ERROR.
+  - `NONE`: Disables logging entirely.
+  
+  If not set, it defaults to `INFO`.
+
 ## Features
 
 - React-based popup interface
 - TypeScript support
 - Modern development environment
+- Configurable logging levels
 
 ## Project Structure
 
@@ -41,6 +53,7 @@ npm run build
 - `src/App.tsx`: Main popup component
 - `src/index.tsx`: Entry point
 - `config/`: Build and webpack configuration
+- `src/utils/logger.ts`: Centralized logging utility
 
 ## Contributing
 
