@@ -1,4 +1,5 @@
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
+import { createLogger } from '../utils/logger';
 
 interface SummaryOptions {
   maxLength?: number;
@@ -17,6 +18,9 @@ interface CachedSummary {
   videoId: string;
 }
 
+// Create a logger instance for the summarization service
+const logger = createLogger('Summarize');
+
 export class SummarizationService {
   private openai: OpenAI;
   
@@ -34,13 +38,13 @@ export class SummarizationService {
       const cached: CachedSummary = result[key];
 
       if (cached) {
-        console.log('SUM-AI - Summarize: Found cached summary for video:', videoId);
+        logger.info('Found cached summary for video:', videoId);
         return cached.summary;
       }
 
       return null;
     } catch (error) {
-      console.error('SUM-AI - Summarize: Error accessing cache:', error);
+      logger.error('Error accessing cache:', error);
       return null;
     }
   }
@@ -55,73 +59,42 @@ export class SummarizationService {
       };
 
       await chrome.storage.local.set({ [key]: cacheEntry });
-      console.log('SUM-AI - Summarize: Cached summary for video:', videoId);
+      logger.info('Cached summary for video:', videoId);
     } catch (error) {
-      console.error('SUM-AI - Summarize: Error caching summary:', error);
+      logger.error('Error caching summary:', error);
     }
   }
 
   async summarizeText(text: string, options: SummaryOptions = {}, videoId?: string): Promise<SummaryResult> {
     try {
-      // Check cache if videoId is provided
-      if (videoId) {
-        const cachedSummary = await this.getCachedSummary(videoId);
-        if (cachedSummary) {
-          return {
-            summary: cachedSummary,
-            cached: true
-          };
-        }
-      }
-
-      const { maxLength = 500, style = 'concise' } = options;
+      logger.info('Starting text summarization');
       
-      let prompt = `Please summarize the following video transcript`;
-      
-      switch (style) {
-        case 'bullet-points':
-          prompt += ' in bullet points, highlighting the key points';
-          break;
-        case 'detailed':
-          prompt += ' in detail, maintaining important context and examples';
-          break;
-        case 'concise':
-        default:
-          prompt += ' concisely, focusing on the main ideas';
-          break;
-      }
-      
-      prompt += `. Keep the summary under ${maxLength} characters.\n\nTranscript:\n${text}`;
-
       const response = await this.openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",
-            content: "You are a helpful assistant that creates clear and accurate summaries of video transcripts."
+            content: "You are a helpful assistant that summarizes text in a clear and concise manner."
           },
           {
             role: "user",
-            content: prompt
+            content: `Please summarize the following text in a ${options.style || 'concise'} style, with a maximum length of ${options.maxLength || 1000} characters:\n\n${text}`
           }
         ],
-        temperature: 0.5,
-        max_tokens: Math.floor(maxLength / 4), // Approximate tokens based on characters
+        max_tokens: options.maxLength || 1000,
+        temperature: 0.7
       });
 
       const summary = response.choices[0]?.message?.content?.trim() || '';
       
-      // Cache the summary if videoId is provided
-      if (videoId && summary) {
+      if (videoId) {
         await this.cacheSummary(videoId, summary);
       }
 
-      return {
-        summary,
-        cached: false
-      };
+      logger.info('Successfully generated summary');
+      return { summary };
     } catch (error) {
-      console.error('Error in summarization:', error);
+      logger.error('Error in summarization:', error);
       
       // Handle specific OpenAI errors
       if (error instanceof Error) {
@@ -155,11 +128,13 @@ export class SummarizationService {
 let summarizationService: SummarizationService | null = null;
 
 export function initializeSummarizationService(apiKey: string): void {
+  logger.info('Initializing summarization service');
   summarizationService = new SummarizationService(apiKey);
 }
 
 export function getSummarizationService(): SummarizationService {
   if (!summarizationService) {
+    logger.error('Summarization service not initialized');
     throw new Error('Summarization service not initialized. Call initializeSummarizationService first.');
   }
   return summarizationService;

@@ -1,10 +1,10 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import Content from './Content';
+import { createLogger } from '../utils/logger';
 
-function logMessage(message: string) {
-  console.log('SUM-AI:', message);
-}
+// Create a logger instance for the content script
+const logger = createLogger('Content');
 
 // Function to inject our React app
 function injectApp() {
@@ -15,43 +15,35 @@ function injectApp() {
   const rightControls = document.querySelector('div#above-the-fold div#top-row div#actions');
   if (!rightControls) return;
 
-  logMessage('Right controls found');
+  logger.info('Right controls found');
   // Create container for our app
   const container = document.createElement('div');
   container.id = 'sum-ai-root';
   rightControls.appendChild(container);
 
-  logMessage('Appended container to right controls');
+  logger.info('Appended container to right controls');
   // Create React root and render app
   const root = createRoot(container);
   root.render(<Content />);
-  logMessage('Rendered Content');
+  logger.info('Rendered Content');
 }
 
-// Function to check if we're on a YouTube video page
-function isYouTubeVideo() {
-  return window.location.hostname === 'www.youtube.com' && 
-         window.location.pathname === '/watch';
-}
-
-// Initialize when on video page
-function init() {
-  if (isYouTubeVideo()) {
-    injectApp();
-  }
-}
-
-// Run initialization
-init();
-
-// Listen for navigation within YouTube (for SPA navigation)
+// Listen for URL changes to inject the app
 let lastUrl = window.location.href;
-const body = document.querySelector('body');
-if (body) {
-  new MutationObserver(() => {
-    if (lastUrl !== window.location.href) {
-      lastUrl = window.location.href;
-      setTimeout(init, 1000); // Wait for page content to load
+new MutationObserver(() => {
+  const url = window.location.href;
+  if (url !== lastUrl) {
+    lastUrl = url;
+    logger.info('URL changed, checking if we should inject app');
+    if (url.includes('youtube.com/watch')) {
+      logger.info('YouTube video page detected, injecting app');
+      injectApp();
     }
-  }).observe(body, { subtree: true, childList: true });
+  }
+}).observe(document, { subtree: true, childList: true });
+
+// Initial injection check
+if (window.location.href.includes('youtube.com/watch')) {
+  logger.info('Initial YouTube video page detected, injecting app');
+  injectApp();
 } 

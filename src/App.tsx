@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { createLogger } from './utils/logger';
 import './App.css';
+
+// Create a logger instance for the App component
+const logger = createLogger('App');
 
 interface SummaryState {
   title: string;
@@ -33,15 +37,15 @@ function App() {
   });
 
   useEffect(() => {
-    console.log('SUM-AI - App: Component mounted');
+    logger.info('Component mounted');
     
     // Request video data from background script
-    console.log('SUM-AI - App: Requesting video data from background');
+    logger.info('Requesting video data from background');
     chrome.runtime.sendMessage({ type: 'GET_VIDEO_DATA' }, (response: BackgroundResponse) => {
-      console.log('SUM-AI - App: Received response from background:', response);
+      logger.info('Received response from background:', response);
       
       if (response?.videoData?.title) {
-        console.log('SUM-AI - App: Updating state with video data');
+        logger.info('Updating state with video data');
         const { videoData, summarizationState } = response;
         setState(prev => ({
           ...prev,
@@ -51,16 +55,16 @@ function App() {
           summary: summarizationState.summary || ''
         }));
       } else {
-        console.log('SUM-AI - App: No video data in response');
+        logger.info('No video data in response');
       }
     });
 
     // Listen for updates from the background script
     const messageListener = (message: any) => {
-      console.log('SUM-AI - App: Received message:', message);
+      logger.info('Received message:', message);
       
       if (message.type === 'SUMMARIZATION_UPDATE') {
-        console.log('SUM-AI - App: Updating state with summarization update');
+        logger.info('Updating state with summarization update');
         setState(prev => ({
           ...prev,
           loading: message.state.inProgress,
@@ -74,12 +78,12 @@ function App() {
 
     // Cleanup listener on unmount
     return () => {
-      console.log('SUM-AI - App: Cleaning up message listener');
+      logger.info('Cleaning up message listener');
       chrome.runtime.onMessage.removeListener(messageListener);
     };
   }, []);
 
-  console.log('SUM-AI - App: Current state:', state);
+  logger.debug('Current state:', state);
 
   return (
     <div className="App">

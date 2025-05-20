@@ -1,5 +1,6 @@
 import { initializeSummarizationService, getSummarizationService } from '../services/summarize';
 import { getVideoIdFromUrl } from '../services/youtube';
+import { createLogger } from '../utils/logger';
 
 interface VideoData {
   title: string;
@@ -27,9 +28,12 @@ let summarizationState: SummarizationState = {
   inProgress: false
 };
 
+// Create a logger instance for the background script
+const logger = createLogger('Background');
+
 // Function to clean up expired cache entries
 async function cleanupExpiredCache() {
-  console.log('SUM-AI - Background: Starting cache cleanup');
+  logger.info('Starting cache cleanup');
   try {
     const data = await chrome.storage.local.get(null);
     const now = Date.now();
@@ -48,12 +52,12 @@ async function cleanupExpiredCache() {
     // Remove expired entries
     if (keysToRemove.length > 0) {
       await chrome.storage.local.remove(keysToRemove);
-      console.log('SUM-AI - Background: Removed', keysToRemove.length, 'expired cache entries');
+      logger.info(`Removed ${keysToRemove.length} expired cache entries`);
     } else {
-      console.log('SUM-AI - Background: No expired cache entries found');
+      logger.info('No expired cache entries found');
     }
   } catch (error) {
-    console.error('SUM-AI - Background: Error during cache cleanup:', error);
+    logger.error('Error during cache cleanup:', error);
   }
 }
 
@@ -74,27 +78,27 @@ cleanupExpiredCache();
 
 // Function to broadcast summarization state updates
 function broadcastSummarizationUpdate() {
-  console.log('SUM-AI - Background: Broadcasting state update:', summarizationState);
+  logger.info('Broadcasting state update:', summarizationState);
   chrome.runtime.sendMessage({
     type: 'SUMMARIZATION_UPDATE',
     state: summarizationState
   }, () => {
     if (chrome.runtime.lastError) {
-      console.warn('SUM-AI - Background: Error broadcasting update:', chrome.runtime.lastError);
+      logger.warn('Error broadcasting update:', chrome.runtime.lastError);
     }
   });
 }
 
 // Function to update summarization state
 function updateSummarizationState(newState: Partial<SummarizationState>) {
-  console.log('SUM-AI - Background: Updating state:', newState);
+  logger.info('Updating state:', newState);
   summarizationState = { ...summarizationState, ...newState };
   broadcastSummarizationUpdate();
 }
 
 // Function to fetch transcript using Tactiq API
 async function fetchTranscript(videoUrl: string): Promise<string> {
-  console.log('SUM-AI - Background: Fetching transcript for video:', videoUrl);
+  logger.info('Fetching transcript for video:', videoUrl);
   
   const response = await fetch('https://tactiq-apps-prod.tactiq.io/transcript', {
     method: 'POST',
@@ -125,27 +129,27 @@ async function fetchTranscript(videoUrl: string): Promise<string> {
     throw new Error('No transcript text found');
   }
 
-  console.log('SUM-AI - Background: Successfully fetched transcript, length:', transcript.length);
+  logger.info('Successfully fetched transcript, length:', transcript.length);
   return transcript;
 }
 
 // Initialize summarization service when API key is available
-console.log('SUM-AI - Background: Initializing background script');
+logger.info('Initializing background script');
 chrome.storage.sync.get(['openaiApiKey'], (result) => {
   if (result.openaiApiKey) {
-    console.log('SUM-AI - Background: Found API key, initializing service');
+    logger.info('Found API key, initializing service');
     initializeSummarizationService(result.openaiApiKey);
   } else {
-    console.warn('SUM-AI - Background: No API key found in storage');
+    logger.warn('No API key found in storage');
   }
 });
 
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('SUM-AI - Background: Received message:', message.type, message);
+  logger.info('Received message:', message.type, message);
 
   if (message.type === 'SUMMARIZE') {
-    console.log('SUM-AI - Background: Starting summarization for video:', message.data);
+    logger.info('Starting summarization for video:', message.data);
     // Store the video data
     currentVideoData = message.data;
     updateSummarizationState({ inProgress: true });
@@ -153,7 +157,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Start summarization process if we have an API key
     chrome.storage.sync.get(['openaiApiKey'], async (result) => {
       if (!result.openaiApiKey) {
-        console.error('SUM-AI - Background: No API key found when trying to summarize');
+        logger.error('No API key found when trying to summarize');
         updateSummarizationState({
           inProgress: false,
           error: 'OpenAI API key not set. Please set it in the extension options.'
@@ -164,15 +168,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       try {
         // Get video ID
         const videoId = getVideoIdFromUrl(currentVideoData?.url || '');
-        console.log('SUM-AI - Background: Processing video:', videoId);
+        logger.info('Processing video:', videoId);
 
         // Check cache first
-        console.log('SUM-AI - Background: Checking cache...');
+        logger.info('Checking cache...');
         const summarizer = getSummarizationService();
         const cachedResult = await summarizer.getCachedSummary(videoId);
         
         if (cachedResult) {
-          console.log('SUM-AI - Background: Found cached summary');
+          logger.info('Found cached summary');
           updateSummarizationState({
             inProgress: false,
             summary: cachedResult
@@ -181,16 +185,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         // If no cache, get transcript and generate summary
-        console.log('SUM-AI - Background: No cache found, fetching transcript...');
+        logger.info('No cache found, fetching transcript...');
         const transcript = await fetchTranscript(currentVideoData?.url || '');
         
-        console.log('SUM-AI - Background: Generating summary...');
+        logger.info('Generating summary...');
         const { summary, error } = await summarizer.summarizeText(transcript, {
           maxLength: 1000,
           style: 'concise'
         }, videoId);
 
-        console.log('SUM-AI - Background: Summary generated:', { 
+        logger.info('Summary generated:', { 
           length: summary?.length, 
           error
         });
@@ -201,7 +205,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           error
         });
       } catch (error) {
-        console.error('SUM-AI - Background: Error during summarization:', error);
+        logger.error('Error during summarization:', error);
         updateSummarizationState({
           inProgress: false,
           error: error instanceof Error ? error.message : 'Failed to generate summary'
@@ -210,7 +214,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
 
     // Open the popup
-    console.log('SUM-AI - Background: Opening popup');
+    logger.info('Opening popup');
     chrome.action.openPopup();
   }
   return true;
@@ -218,23 +222,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('SUM-AI - Background: Received message from popup:', message.type);
+  logger.info('Received message from popup:', message.type);
 
   if (message.type === 'GET_VIDEO_DATA') {
     const response = {
       videoData: currentVideoData,
       summarizationState
     };
-    console.log('SUM-AI - Background: Sending video data to popup:', response);
+    logger.info('Sending video data to popup:', response);
     sendResponse(response);
   } else if (message.type === 'SET_API_KEY') {
-    console.log('SUM-AI - Background: Setting new API key');
+    logger.info('Setting new API key');
     chrome.storage.sync.set({ openaiApiKey: message.apiKey }, () => {
       if (chrome.runtime.lastError) {
-        console.error('SUM-AI - Background: Error saving API key:', chrome.runtime.lastError);
+        logger.error('Error saving API key:', chrome.runtime.lastError);
         sendResponse({ success: false, error: chrome.runtime.lastError.message });
       } else {
-        console.log('SUM-AI - Background: API key saved, initializing service');
+        logger.info('API key saved, initializing service');
         initializeSummarizationService(message.apiKey);
         sendResponse({ success: true });
       }

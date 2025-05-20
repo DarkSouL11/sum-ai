@@ -57,7 +57,11 @@ module.exports = {
   appBuild: resolveApp(buildPath),
   appPublic: resolveApp('public'),
   appHtml: resolveApp('public/index.html'),
+  appOptionsHtml: resolveApp('public/options.html'),
   appIndexJs: resolveModule(resolveApp, 'src/index'),
+  appBackgroundJs: resolveModule(resolveApp, 'src/background/index'),
+  appContentJs: resolveModule(resolveApp, 'src/content/index'),
+  appOptionsJs: resolveModule(resolveApp, 'src/options/index'),
   appPackageJson: resolveApp('package.json'),
   appSrc: resolveApp('src'),
   appTsConfig: resolveApp('tsconfig.json'),
@@ -71,7 +75,5 @@ module.exports = {
   swSrc: resolveModule(resolveApp, 'src/service-worker'),
   publicUrlOrPath,
 };
-
-
 
 module.exports.moduleFileExtensions = moduleFileExtensions;
